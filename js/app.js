@@ -43,6 +43,7 @@ themeToggle.addEventListener('click', () => {
 });
 
 // 2. Autocomplete Search
+let lastSuggestions = [];
 destinationInput.addEventListener('input', async (e) => {
     const query = e.target.value;
     if (query.length < 2) {
@@ -51,10 +52,12 @@ destinationInput.addEventListener('input', async (e) => {
     }
 
     const suggestions = await API.getSuggestions(query);
+    lastSuggestions = suggestions;
+    
     if (suggestions.length > 0) {
-        autocompleteList.innerHTML = suggestions.map(s => `
+        autocompleteList.innerHTML = suggestions.map((s, index) => `
             <div class="px-4 py-3 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer flex items-center gap-3 transition-colors suggestion-item" 
-                 data-id="${s.id}">
+                 data-index="${index}">
                 <i data-lucide="map-pin" class="w-4 h-4 text-slate-400"></i>
                 <div>
                     <p class="font-semibold">${s.name}</p>
@@ -67,7 +70,8 @@ destinationInput.addEventListener('input', async (e) => {
         
         document.querySelectorAll('.suggestion-item').forEach(item => {
             item.addEventListener('click', () => {
-                selectDestination(item.getAttribute('data-id'));
+                const idx = item.getAttribute('data-index');
+                selectDestination(lastSuggestions[idx]);
             });
         });
     } else {
@@ -75,15 +79,26 @@ destinationInput.addEventListener('input', async (e) => {
     }
 });
 
-searchBtn.addEventListener('click', () => {
-    const query = destinationInput.value.toLowerCase();
-    const match = destinations.find(d => d.name.toLowerCase() === query);
-    if (match) selectDestination(match.id);
+searchBtn.addEventListener('click', async () => {
+    const query = destinationInput.value;
+    if (!query) return;
+    
+    // First check local data
+    const localMatch = destinations.find(d => d.name.toLowerCase() === query.toLowerCase());
+    if (localMatch) {
+        selectDestination(localMatch);
+        return;
+    }
+
+    // Otherwise fetch from API
+    const suggestions = await API.getSuggestions(query);
+    if (suggestions.length > 0) {
+        selectDestination(suggestions[0]);
+    }
 });
 
 // 3. Selection Logic
-async function selectDestination(destId) {
-    const dest = destinations.find(d => d.id === destId);
+async function selectDestination(dest) {
     if (!dest) return;
 
     appState.currentDestination = dest;
@@ -94,15 +109,23 @@ async function selectDestination(destId) {
     emptyState.classList.add('hidden');
     appContent.classList.remove('hidden');
     
+    // Scroll to top of content
+    appContent.scrollIntoView({ behavior: 'smooth' });
+
     updateUI();
     renderMap(dest.lat, dest.lon);
     fetchAndRenderWeather(dest.lat, dest.lon);
 }
 
 // Global mockup for easy search from empty state
-window.simulateSearch = (name) => {
-    const dest = destinations.find(d => d.name.toLowerCase() === name.toLowerCase());
-    if (dest) selectDestination(dest.id);
+window.simulateSearch = async (name) => {
+    const suggestions = await API.getSuggestions(name);
+    if (suggestions && suggestions.length > 0) {
+        selectDestination(suggestions[0]);
+    } else {
+        const dest = destinations.find(d => d.name.toLowerCase() === name.toLowerCase());
+        if (dest) selectDestination(dest);
+    }
 };
 
 // 4. UI Rendering Engine
@@ -111,7 +134,7 @@ function updateUI() {
 
     // Header
     document.getElementById('currentDestTitle').textContent = `${appState.currentDestination.name}, ${appState.currentDestination.country}`;
-    
+
     // Tips
     document.getElementById('travelTips').innerHTML = appState.currentDestination.tips
         .map(tip => `<li>• ${tip}</li>`).join('');
@@ -120,6 +143,15 @@ function updateUI() {
     renderSummary();
     renderNearby();
     renderSavedTrips();
+}
+
+// Helper: format numbers to INR currency with commas
+function formatINR(amount) {
+    try {
+        return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
+    } catch (e) {
+        return `₹${amount}`;
+    }
 }
 
 // 5. Tab Management
@@ -138,8 +170,8 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 
 function renderTabs() {
     const destId = appState.currentDestination.id;
-    
-    switch(appState.activeTab) {
+
+    switch (appState.activeTab) {
         case 'itinerary':
             renderItinerary(destId);
             break;
@@ -166,9 +198,9 @@ function renderItinerary(destId) {
     // Smart Slider Logic: Generate day-wise plan based on appState.duration
     // If we have 3 days of data but user wants 5, we repeat or shuffle
     let plan = [];
-    for(let i = 0; i < appState.duration; i++) {
+    for (let i = 0; i < appState.duration; i++) {
         const template = data[i % data.length];
-        plan.push({ ...template, day: i + 1 });
+        plan.push({...template, day: i + 1 });
     }
 
     tabView.innerHTML = `
@@ -203,13 +235,38 @@ function renderItinerary(destId) {
 }
 
 // Hotel Renderer (Using Filter & Sort)
-function renderHotels(destId) {
-    let filteredHotels = hotels.filter(h => h.destination === destId);
+async function renderHotels(destId) {
+    tabView.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="hotelsGrid">
+            ${Array(4).fill().map(() => `
+                <div class="glass rounded-2xl overflow-hidden animate-pulse">
+                    <div class="h-40 bg-slate-200 dark:bg-slate-800"></div>
+                    <div class="p-5 space-y-3">
+                        <div class="h-6 bg-slate-200 dark:bg-slate-800 rounded w-3/4"></div>
+                        <div class="h-4 bg-slate-200 dark:bg-slate-800 rounded w-1/2"></div>
+                        <div class="h-10 bg-slate-200 dark:bg-slate-800 rounded w-full"></div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    const lat = appState.currentDestination.lat;
+    const lon = appState.currentDestination.lon;
     
-    // Budget Filter
-    if (appState.budgetLevel === 'low') filteredHotels = filteredHotels.filter(h => h.price < 100);
-    else if (appState.budgetLevel === 'medium') filteredHotels = filteredHotels.filter(h => h.price >= 100 && h.price < 300);
-    else filteredHotels = filteredHotels.filter(h => h.price >= 300);
+    let apiHotels = await API.fetchNearbyPlaces(lat, lon, 'hotels');
+    
+    // If API returns nothing, fallback to local data
+    if (!apiHotels || apiHotels.length === 0) {
+        apiHotels = hotels.filter(h => h.destination === destId);
+    }
+    
+    let filteredHotels = apiHotels;
+    
+    // Budget Filter (values in INR)
+    if (appState.budgetLevel === 'low') filteredHotels = filteredHotels.filter(h => h.price < 3000);
+    else if (appState.budgetLevel === 'medium') filteredHotels = filteredHotels.filter(h => h.price >= 3000 && h.price < 10000);
+    else filteredHotels = filteredHotels.filter(h => h.price >= 10000);
 
     // Sort Logic
     const sortBy = document.getElementById('sortOption').value;
@@ -220,22 +277,22 @@ function renderHotels(destId) {
     tabView.innerHTML = `
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             ${filteredHotels.length ? filteredHotels.map(h => `
-                <div class="glass rounded-2xl overflow-hidden group">
-                    <div class="h-40 bg-slate-200 dark:bg-slate-800 relative">
-                        <img src="https://source.unsplash.com/featured/?hotel,${appState.currentDestination.name}" class="w-full h-full object-cover opacity-80 group-hover:scale-110 transition-transform duration-500">
+                <div class="glass rounded-2xl overflow-hidden group hover:shadow-xl transition-all duration-300">
+                    <div class="h-40 bg-slate-200 dark:bg-slate-800 relative overflow-hidden">
+                        <img src="https://source.unsplash.com/featured/?hotel,resort,${h.name.split(' ')[0]}" class="w-full h-full object-cover opacity-80 group-hover:scale-110 transition-transform duration-500">
                         <div class="absolute top-3 right-3 bg-white/90 dark:bg-slate-900/90 px-2 py-1 rounded-lg flex items-center gap-1 text-sm font-bold text-accent">
                             <i data-lucide="star" class="w-3 h-3 fill-accent"></i> ${h.rating}
                         </div>
                     </div>
                     <div class="p-5">
                         <div class="flex justify-between items-start mb-2">
-                            <h4 class="font-bold text-lg">${h.name}</h4>
-                            <span class="text-primary font-bold text-xl">$${h.price}<span class="text-xs text-slate-400 font-normal">/night</span></span>
+                            <h4 class="font-bold text-lg line-clamp-1">${h.name}</h4>
+                            <span class="text-primary font-black text-xl whitespace-nowrap">${formatINR(h.price)}<span class="text-[10px] text-slate-400 font-normal">/night</span></span>
                         </div>
                         <p class="text-xs text-slate-500 mb-4 flex items-center gap-1">
                             <i data-lucide="navigation" class="w-3 h-3"></i> ${h.distance} km from center • ${h.type}
                         </p>
-                        <button class="w-full py-2 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-semibold hover:opacity-90 transition-all">Book Now</button>
+                        <button class="w-full py-2 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold hover:opacity-90 transition-all">Book Now</button>
                     </div>
                 </div>
             `).join('') : '<p class="col-span-2 text-center py-20 text-slate-400">No hotels found in this budget. Try changing filters!</p>'}
@@ -245,22 +302,44 @@ function renderHotels(destId) {
 }
 
 // Restaurant Renderer
-function renderRestaurants(destId) {
-    let filteredFood = restaurants.filter(r => r.destination === destId);
+async function renderRestaurants(destId) {
+    tabView.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            ${Array(4).fill().map(() => `
+                <div class="glass p-5 rounded-2xl flex items-center gap-4 animate-pulse">
+                    <div class="w-20 h-20 rounded-xl bg-slate-200 dark:bg-slate-800"></div>
+                    <div class="flex-1 space-y-2">
+                        <div class="h-5 bg-slate-200 dark:bg-slate-800 rounded w-3/4"></div>
+                        <div class="h-3 bg-slate-200 dark:bg-slate-800 rounded w-1/2"></div>
+                        <div class="h-4 bg-slate-200 dark:bg-slate-800 rounded w-1/4"></div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    const lat = appState.currentDestination.lat;
+    const lon = appState.currentDestination.lon;
+    
+    let apiRestaurants = await API.fetchNearbyPlaces(lat, lon, 'restaurants');
+    
+    if (!apiRestaurants || apiRestaurants.length === 0) {
+        apiRestaurants = restaurants.filter(r => r.destination === destId);
+    }
     
     tabView.innerHTML = `
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            ${filteredFood.map(r => `
-                <div class="glass p-5 rounded-2xl flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all">
+            ${apiRestaurants.map(r => `
+                <div class="glass p-5 rounded-2xl flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
                     <div class="w-20 h-20 rounded-xl bg-slate-200 dark:bg-slate-800 flex-shrink-0 overflow-hidden">
-                        <img src="https://source.unsplash.com/featured/?food,${r.cuisine}" class="w-full h-full object-cover">
+                        <img src="https://source.unsplash.com/featured/?food,${r.cuisine},restaurant" class="w-full h-full object-cover group-hover:scale-110 transition-transform">
                     </div>
                     <div class="flex-1">
-                        <h4 class="font-bold">${r.name}</h4>
-                        <p class="text-xs text-slate-500">${r.cuisine} Cuisine • ${r.type}</p>
+                        <h4 class="font-bold line-clamp-1">${r.name}</h4>
+                        <p class="text-[10px] text-slate-500 uppercase font-bold">${r.cuisine} • ${r.type}</p>
                         <div class="mt-2 flex items-center justify-between">
-                            <span class="text-accent font-bold text-sm flex items-center gap-1"><i data-lucide="star" class="w-3 h-3"></i> ${r.rating}</span>
-                            <span class="text-primary font-bold">~$${r.price}</span>
+                            <span class="text-accent font-bold text-xs flex items-center gap-1"><i data-lucide="star" class="w-3 h-3"></i> ${r.rating}</span>
+                            <span class="text-primary font-black">${formatINR(r.price)}</span>
                         </div>
                     </div>
                 </div>
@@ -286,7 +365,7 @@ function renderTransport() {
                         </div>
                     </div>
                     <div class="text-right">
-                        <p class="text-lg font-bold text-primary">$${t.pricePerDay}</p>
+                        <p class="text-lg font-bold text-primary">${formatINR(t.pricePerDay)}</p>
                         <p class="text-[10px] text-slate-400">PER DAY ESTIMATE</p>
                     </div>
                 </div>
@@ -314,8 +393,9 @@ async function renderGallery() {
 // 6. Summary Logic (Using Reduce)
 function renderSummary() {
     const dailyDestCost = appState.currentDestination.avgDailyCost;
-    const hotelCost = appState.budgetLevel === 'low' ? 30 : appState.budgetLevel === 'medium' ? 120 : 400;
-    const foodCost = appState.budgetLevel === 'low' ? 15 : appState.budgetLevel === 'medium' ? 40 : 100;
+    // Estimated costs in INR per day (approximate)
+    const hotelCost = appState.budgetLevel === 'low' ? 2000 : appState.budgetLevel === 'medium' ? 5000 : 15000;
+    const foodCost = appState.budgetLevel === 'low' ? 300 : appState.budgetLevel === 'medium' ? 800 : 2000;
     
     const breakdown = [
         { label: 'Lodging', cost: hotelCost * appState.duration },
@@ -331,13 +411,13 @@ function renderSummary() {
         <div class="space-y-3">
             <div class="flex justify-between items-center text-2xl font-black text-primary">
                 <span>Total Est.</span>
-                <span>$${totalCost}</span>
+                <span>${formatINR(totalCost)}</span>
             </div>
             <div class="h-[1px] bg-slate-200 dark:bg-slate-800 my-2"></div>
             ${breakdown.map(b => `
                 <div class="flex justify-between text-xs font-medium">
                     <span class="text-slate-500 uppercase">${b.label}</span>
-                    <span>$${b.cost}</span>
+                    <span>${formatINR(b.cost)}</span>
                 </div>
             `).join('')}
             <div class="mt-4 p-4 rounded-xl bg-slate-100 dark:bg-slate-800/50">
@@ -389,21 +469,40 @@ function renderMap(lat, lon) {
     L.marker([lat, lon]).addTo(map).bindPopup(appState.currentDestination.name).openPopup();
 }
 
-// 9. Nearby Places
-function renderNearby() {
-    const nearby = [
-        { name: "City Center", dist: "0.5km", icon: "map-pin" },
-        { name: "Museum District", dist: "1.2km", icon: "palmtree" },
-        { name: "Central Station", dist: "2.5km", icon: "train" }
-    ];
-    document.getElementById('nearbyHits').innerHTML = nearby.map(n => `
-        <div class="flex items-center gap-3 group">
+// 9. Nearby Places (Live Attractions)
+async function renderNearby() {
+    const hitsEl = document.getElementById('nearbyHits');
+    hitsEl.innerHTML = Array(3).fill().map(() => `
+        <div class="flex items-center gap-3 animate-pulse">
+            <div class="w-8 h-8 rounded-lg bg-slate-200 dark:bg-slate-800"></div>
+            <div class="flex-1 space-y-2">
+                <div class="h-3 bg-slate-200 dark:bg-slate-800 rounded w-3/4"></div>
+                <div class="h-2 bg-slate-200 dark:bg-slate-800 rounded w-1/2"></div>
+            </div>
+        </div>
+    `).join('');
+
+    const lat = appState.currentDestination.lat;
+    const lon = appState.currentDestination.lon;
+    
+    let nearby = await API.fetchNearbyPlaces(lat, lon, 'destinations');
+    
+    if (!nearby || nearby.length === 0) {
+        nearby = [
+            { name: "City Center", distance: "0.5", type: "map-pin" },
+            { name: "Museum District", distance: "1.2", type: "palmtree" },
+            { name: "Central Station", distance: "2.5", type: "train" }
+        ];
+    }
+
+    hitsEl.innerHTML = nearby.map(n => `
+        <div class="flex items-center gap-3 group cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30 p-1 rounded-lg transition-all">
             <div class="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 text-indigo-500 flex items-center justify-center flex-shrink-0">
-                <i data-lucide="${n.icon}" class="w-4 h-4"></i>
+                <i data-lucide="map-pin" class="w-4 h-4"></i>
             </div>
             <div class="flex-1 border-b border-slate-100 dark:border-slate-800 pb-2 flex justify-between items-center">
-                <span class="font-medium text-sm group-hover:text-indigo-500 transition-colors">${n.name}</span>
-                <span class="text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">${n.dist}</span>
+                <span class="font-medium text-[13px] group-hover:text-indigo-500 transition-colors line-clamp-1">${n.name}</span>
+                <span class="text-[9px] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full whitespace-nowrap">${n.distance}km</span>
             </div>
         </div>
     `).join('');
@@ -512,7 +611,7 @@ function renderCompare() {
             <div class="space-y-4">
                 <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl">
                     <span class="text-xs font-bold text-slate-400 uppercase">Daily Budget</span>
-                    <span class="text-primary font-black">$${d.avgDailyCost}</span>
+                        <span class="text-primary font-black">${formatINR(d.avgDailyCost)}</span>
                 </div>
                 <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl">
                     <span class="text-xs font-bold text-slate-400 uppercase">Weather Vibe</span>
@@ -528,7 +627,7 @@ function renderCompare() {
                 </div>
             </div>
             
-            <button onclick="selectDestination('${d.id}'); document.getElementById('compareModal').classList.add('hidden')" class="w-full py-3 bg-primary text-white font-bold rounded-xl hover:opacity-90 transition-all">
+            <button onclick="const match = destinations.find(x => x.id === '${d.id}'); if(match) selectDestination(match); else selectDestination(appState.currentDestination); document.getElementById('compareModal').classList.add('hidden')" class="w-full py-3 bg-primary text-white font-bold rounded-xl hover:opacity-90 transition-all">
                 Choose This Trip
             </button>
         </div>

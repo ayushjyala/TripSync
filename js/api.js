@@ -8,10 +8,8 @@ const API = {
     // 1. Live Weather Integration
     async fetchWeather(lat, lon) {
         try {
-            // Using a demo URL if no key provided, otherwise real fetch
             const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${API_CONFIG.WEATHER_KEY}`;
             
-            // For demo purposes, if key is 'YOUR_FREE_WEATHER_KEY', return Mock Data
             if (API_CONFIG.WEATHER_KEY === 'YOUR_FREE_WEATHER_KEY') {
                 return {
                     temp: 22,
@@ -39,7 +37,6 @@ const API = {
     async fetchPlaceImages(query) {
         try {
             if (API_CONFIG.UNSPLASH_KEY === 'YOUR_UNSPLASH_KEY') {
-                // Return dummy high-quality images if no key
                 return [
                     `https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=400&q=80`,
                     `https://images.unsplash.com/photo-1499856871958-5b9627545d1a?w=400&q=80`,
@@ -57,13 +54,89 @@ const API = {
         }
     },
 
-    // 3. Autocomplete logic (Satisfies fetch requirement if using GeoDB)
+    // 3. Autocomplete logic (Using Nominatim API for real-world destinations)
     async getSuggestions(query) {
-        // Here we use internal data, but you can fetch from:
-        // https://geodb-cities-api.p.rapidapi.com/v1/geo/cities
-        return destinations.filter(dest => 
-            dest.name.toLowerCase().includes(query.toLowerCase()) || 
-            dest.country.toLowerCase().includes(query.toLowerCase())
-        );
+        try {
+            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`);
+            const data = await response.json();
+            
+            return data.map(item => ({
+                id: item.place_id,
+                name: item.display_name.split(',')[0],
+                country: item.address.country || 'Unknown',
+                lat: parseFloat(item.lat),
+                lon: parseFloat(item.lon),
+                description: item.display_name,
+                tips: ["Explore the local culture.", "Try the street food.", "Visit the nearest landmark."],
+                avgDailyCost: 3000 // Default estimate in INR
+            }));
+        } catch (error) {
+            console.error("Geocoding Error:", error);
+            // Fallback to local data
+            return destinations.filter(dest => 
+                dest.name.toLowerCase().includes(query.toLowerCase()) || 
+                dest.country.toLowerCase().includes(query.toLowerCase())
+            );
+        }
+    },
+
+    // 4. Overpass API for Nearby Places (Restaurants, Hotels, Attractions)
+    async fetchNearbyPlaces(lat, lon, type) {
+        let amenity = '';
+        if (type === 'restaurants') amenity = 'restaurant';
+        else if (type === 'hotels') amenity = 'hotel|hostel|guest_house|motel';
+        else if (type === 'destinations') amenity = 'tourism|attraction|museum|viewpoint';
+
+        const radius = 5000; // 5km
+        const query = `
+            [out:json];
+            (
+              node["amenity"~"${amenity}"](around:${radius},${lat},${lon});
+              way["amenity"~"${amenity}"](around:${radius},${lat},${lon});
+              node["tourism"~"${amenity}"](around:${radius},${lat},${lon});
+              way["tourism"~"${amenity}"](around:${radius},${lat},${lon});
+            );
+            out center;
+        `;
+        
+        try {
+            const response = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            
+            return data.elements.map(el => {
+                const tags = el.tags || {};
+                // Mock prices in INR since Overpass doesn't provide them
+                let price = 0;
+                if (type === 'restaurants') price = Math.floor(Math.random() * 1500) + 300;
+                else if (type === 'hotels') price = Math.floor(Math.random() * 8000) + 1500;
+                else price = Math.floor(Math.random() * 1000) + 100;
+
+                return {
+                    name: tags.name || 'Unnamed Place',
+                    type: tags.amenity || tags.tourism || 'Point of Interest',
+                    rating: (Math.random() * (5 - 3.5) + 3.5).toFixed(1),
+                    price: price,
+                    cuisine: tags.cuisine || 'Local',
+                    distance: this.calculateDistance(lat, lon, el.lat || el.center.lat, el.lon || el.center.lon).toFixed(1),
+                    lat: el.lat || el.center.lat,
+                    lon: el.lon || el.center.lon
+                };
+            }).filter(p => p.name !== 'Unnamed Place').slice(0, 10);
+        } catch (error) {
+            console.error(`Overpass API Error (${type}):`, error);
+            return [];
+        }
+    },
+
+    // Distance helper
+    calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371; // Radius of the earth in km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
     }
 };

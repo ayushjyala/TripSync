@@ -1,13 +1,12 @@
-const destinations = [
-    {
-        id: "paris",
-        name: "Paris",
-        country: "France",
-        description: "The city of light, love, and world-class art.",
-        lat: 48.8566,
-        lon: 2.3522,
-        tips: ["Visit the Louvre early.", "Try local bakeries.", "Use the Metro."],
-        avgDailyCost: 150
+const destinations = [{
+        id: "jaipur",
+        name: "Jaipur",
+        country: "India",
+        description: "The Pink City, known for its historic palaces and vibrant culture.",
+        lat: 26.9124,
+        lon: 75.7873,
+        tips: ["Visit Amer Fort early.", "Shop at Johari Bazaar.", "Try local Rajasthani thali."],
+        avgDailyCost: 4000
     },
     {
         id: "manali",
@@ -17,76 +16,76 @@ const destinations = [
         lat: 32.2432,
         lon: 77.1892,
         tips: ["Carry warm clothes.", "Visit Solang Valley.", "Try local trout fish."],
-        avgDailyCost: 50
+        avgDailyCost: 3500
     },
     {
-        id: "bali",
-        name: "Bali",
-        country: "Indonesia",
-        description: "An Indonesian island known for its forested volcanic mountains and iconic rice paddies.",
-        lat: -8.4095,
-        lon: 115.1889,
-        tips: ["Respect temple dress codes.", "Rent a scooter.", "Stay hydrated."],
-        avgDailyCost: 80
+        id: "goa",
+        name: "Goa",
+        country: "India",
+        description: "Famous for its beaches, vibrant nightlife, and Portuguese heritage.",
+        lat: 15.2993,
+        lon: 74.1240,
+        tips: ["Rent a scooter.", "Visit Dudhsagar Falls.", "Try Goan seafood."],
+        avgDailyCost: 5000
     },
     {
-        id: "tokyo",
-        name: "Tokyo",
-        country: "Japan",
-        description: "Japan's busy capital, mixing ultramodern and traditional.",
-        lat: 35.6762,
-        lon: 139.6503,
-        tips: ["Get a JR Pass.", "Try Tsukiji Market.", "Explore Shibuya."],
-        avgDailyCost: 120
+        id: "kerala",
+        name: "Munnar",
+        country: "India",
+        description: "A hill station in Kerala, famous for its lush tea estates and serene environment.",
+        lat: 10.0889,
+        lon: 77.0595,
+        tips: ["Take a tea tasting tour.", "Visit Eravikulam National Park.", "Pack an umbrella."],
+        avgDailyCost: 4500
     }
 ];
 
 const hotels = [
-    { name: "Luxury Palace", destination: "paris", price: 450, rating: 4.8, type: "luxury", distance: 1.2 },
-    { name: "Cozy Inn", destination: "paris", price: 120, rating: 4.2, type: "budget", distance: 3.5 },
-    { name: "Art Deco Hotel", destination: "paris", price: 280, rating: 4.5, type: "mid-range", distance: 0.5 },
-    { name: "Himalayan View", destination: "manali", price: 80, rating: 4.6, type: "mid-range", distance: 2.0 },
-    { name: "Snow Peak Hostel", destination: "manali", price: 25, rating: 4.1, type: "budget", distance: 0.8 },
-    { name: "Zen Resort", destination: "bali", price: 200, rating: 4.9, type: "luxury", distance: 5.0 },
-    { name: "Beachside Bungalow", destination: "bali", price: 60, rating: 4.3, type: "budget", distance: 0.2 },
-    { name: "Tokyo Skyline", destination: "tokyo", price: 350, rating: 4.7, type: "luxury", distance: 1.5 },
-    { name: "Capsule Stay", destination: "tokyo", price: 40, rating: 4.0, type: "budget", distance: 0.5 }
+    { name: "Rambagh Palace", destination: "jaipur", price: 25000, rating: 4.9, type: "luxury", distance: 3.2 },
+    { name: "Heritage Inn", destination: "jaipur", price: 3000, rating: 4.2, type: "budget", distance: 1.5 },
+    { name: "Pink City Hotel", destination: "jaipur", price: 6000, rating: 4.5, type: "mid-range", distance: 0.5 },
+    { name: "Himalayan View", destination: "manali", price: 5000, rating: 4.6, type: "mid-range", distance: 2.0 },
+    { name: "Snow Peak Hostel", destination: "manali", price: 1500, rating: 4.1, type: "budget", distance: 0.8 },
+    { name: "Taj Exotica", destination: "goa", price: 20000, rating: 4.9, type: "luxury", distance: 5.0 },
+    { name: "Beachside Shack", destination: "goa", price: 2500, rating: 4.3, type: "budget", distance: 0.2 },
+    { name: "Tea County Resort", destination: "kerala", price: 8000, rating: 4.7, type: "luxury", distance: 1.5 },
+    { name: "Backpacker's Nest", destination: "kerala", price: 1000, rating: 4.0, type: "budget", distance: 0.5 }
 ];
 
 const restaurants = [
-    { name: "Le Bistro", destination: "paris", price: 60, rating: 4.5, type: "non-veg", cuisine: "French" },
-    { name: "Veggie Delight", destination: "paris", price: 30, rating: 4.2, type: "veg", cuisine: "Global" },
-    { name: "Chopsticks", destination: "manali", price: 15, rating: 4.4, type: "non-veg", cuisine: "Chinese" },
-    { name: "Local Thali", destination: "manali", price: 10, rating: 4.8, type: "veg", cuisine: "Indian" },
-    { name: "Nasi Goreng Hub", destination: "bali", price: 12, rating: 4.6, type: "non-veg", cuisine: "Indonesian" },
-    { name: "Sushi Master", destination: "tokyo", price: 80, rating: 4.9, type: "non-veg", cuisine: "Japanese" }
+    { name: "Chokhi Dhani", destination: "jaipur", price: 1200, rating: 4.7, type: "veg", cuisine: "Rajasthani" },
+    { name: "LMB", destination: "jaipur", price: 600, rating: 4.3, type: "veg", cuisine: "Indian Sweets" },
+    { name: "Chopsticks", destination: "manali", price: 800, rating: 4.4, type: "non-veg", cuisine: "Chinese" },
+    { name: "Local Thali", destination: "manali", price: 300, rating: 4.8, type: "veg", cuisine: "Indian" },
+    { name: "Fisherman's Wharf", destination: "goa", price: 1500, rating: 4.6, type: "non-veg", cuisine: "Goan" },
+    { name: "Saravana Bhavan", destination: "kerala", price: 400, rating: 4.5, type: "veg", cuisine: "South Indian" }
 ];
 
 const transportOptions = [
-    { type: "Private Cab", destination: "global", pricePerDay: 50, icon: "car" },
-    { type: "Public Transport", destination: "global", pricePerDay: 10, icon: "bus" },
-    { type: "Bike Rental", destination: "global", pricePerDay: 20, icon: "bike" }
+    { type: "Private Cab", destination: "India", pricePerDay: 2500, icon: "car" },
+    { type: "Public Transport", destination: "India", pricePerDay: 200, icon: "bus" },
+    { type: "Bike Rental", destination: "India", pricePerDay: 500, icon: "bike" }
 ];
 
 const itineraryData = {
-    paris: [
-        { day: 1, title: "Arrival & Eiffel Tower", activity: "Check-in at hotel and visit the iconic Eiffel Tower for sunset views." },
-        { day: 2, title: "Art & Musems", activity: "Spend full day at Louvre and Museé d'Orsay. Evening walk at Seine River." },
-        { day: 3, title: "Montmartre Charm", activity: "Explore the artistic streets of Montmartre and Sacré-Cœur Basilica." }
+    jaipur: [
+        { day: 1, title: "Arrival & City Palace", activity: "Check-in at hotel and visit the magnificent City Palace and Jantar Mantar." },
+        { day: 2, title: "Forts & Shopping", activity: "Spend the day exploring Amer Fort and Nahargarh Fort. Evening shopping at Bapu Bazaar." },
+        { day: 3, title: "Hawa Mahal", activity: "Visit the iconic Hawa Mahal and try local Rajasthani delicacies." }
     ],
     manali: [
         { day: 1, title: "Himalayan Welcome", activity: "Arrive in Manali, visit Hadimba Devi Temple and Old Manali market." },
         { day: 2, title: "Snow Adventure", activity: "Full day trip to Solang Valley for paragliding and snow activities." },
         { day: 3, title: "Beas River Side", activity: "Leisure day by the Beas river and explore local cafes." }
     ],
-    bali: [
-        { day: 1, title: "Beach Vibes", activity: "Arrive in Seminyak, sunset at the beach club." },
-        { day: 2, title: "Ubud Culture", activity: "Sacred Monkey Forest and Tegalalang Rice Terrace." },
-        { day: 3, title: "Nusa Penida", activity: "Ferry to Nusa Penida and visit Kelingking Beach." }
+    goa: [
+        { day: 1, title: "Beach Vibes", activity: "Arrive in North Goa, enjoy sunset at Baga Beach." },
+        { day: 2, title: "Heritage Tour", activity: "Visit the Basilica of Bom Jesus and explore Old Goa." },
+        { day: 3, title: "South Goa Chill", activity: "Relax at Palolem Beach and try some water sports." }
     ],
-    tokyo: [
-        { day: 1, title: "Neon Lights", activity: "Arrive in Shinjuku, explore the Golden Gai and Omoide Yokocho." },
-        { day: 2, title: "Old & New", activity: "Visit Senso-ji Temple followed by Skytree views." },
-        { day: 3, title: "Harajuku Style", activity: "Boutique shopping in Harajuku and Meiji Jingu Shrine." }
+    kerala: [
+        { day: 1, title: "Tea Gardens", activity: "Arrive in Munnar, visit the sprawling tea estates and Tata Tea Museum." },
+        { day: 2, title: "Nature & Wildlife", activity: "Explore Eravikulam National Park and Mattupetty Dam." },
+        { day: 3, title: "Echo Point", activity: "Visit Echo Point and enjoy a serene boat ride." }
     ]
 };
