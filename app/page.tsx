@@ -76,7 +76,7 @@ export default function HomePage() {
                   <div className="text-sm text-white/80">Destinations</div>
                 </div>
                 <div className="text-white">
-                  <div className="text-3xl md:text-4xl font-bold">30</div>
+                  <div className="text-3xl md:text-4xl font-bold">28</div>
                   <div className="text-sm text-white/80">Indian States</div>
                 </div>
                 <div className="text-white">
@@ -200,7 +200,7 @@ export default function HomePage() {
                 {
                   icon: <MapPin className="h-8 w-8" />,
                   title: 'Comprehensive Coverage',
-                  description: '100+ destinations across all 30 Indian states and union territories'
+                  description: '100+ destinations across all 28 Indian states and union territories'
                 },
                 {
                   icon: <DollarSign className="h-8 w-8" />,
